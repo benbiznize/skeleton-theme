@@ -1,0 +1,155 @@
+{% liquid
+  assign card_style = section.settings.card_style | default: 'filled'
+  assign card_classes = 'featured-merch-card'
+  if card_style == 'minimal'
+    assign card_classes = card_classes | append: ' featured-merch-card--minimal'
+  elsif card_style == 'outline'
+    assign card_classes = card_classes | append: ' featured-merch-card--outline'
+  endif
+  assign media = product.featured_media
+  assign aspect_ratio = media.aspect_ratio | default: 1
+  if aspect_ratio > 0
+    assign padding_percent = 100 | divided_by: aspect_ratio | round: 2
+  else
+    assign padding_percent = 100
+  endif
+  assign selected_variant = product.selected_or_first_available_variant
+  assign now_seconds = 'now' | date: '%s'
+  assign publish_seconds = product.published_at | date: '%s'
+  assign new_window = new_badge_days | times: 86400
+  assign is_new = false
+  if enable_new_badge and publish_seconds and publish_seconds != blank
+    assign delta = now_seconds | minus: publish_seconds
+    if delta < new_window
+      assign is_new = true
+    endif
+  endif
+  assign on_sale = false
+  if enable_sale_badge and product.compare_at_price_max > product.price
+    assign on_sale = true
+  endif
+  assign bestseller = false
+  if enable_bestseller_badge and bestseller_tag != blank
+    assign tag_string = product.tags | join: '|' | downcase
+    assign bestseller = tag_string contains bestseller_tag
+  endif
+  assign low_stock = false
+  assign inv_qty = selected_variant.inventory_quantity
+  if enable_low_stock_badge and selected_variant.available and selected_variant.inventory_management and inv_qty <= low_stock_threshold and inv_qty > 0
+    assign low_stock = true
+  endif
+  assign badges = ''
+%}
+<div class="featured-merch__item" {% if block %}{{ block.shopify_attributes }}{% endif %}>
+  <article class="{{ card_classes }}" data-card-type="product">
+    <div class="featured-merch-card__media" style="--media-aspect: {{ padding_percent }}%;">
+      {% if on_sale %}
+        {% capture badges %}{{ badges }}<span class="featured-merch-card__badge">{{ sale_badge_label }}</span>{% endcapture %}
+      {% endif %}
+      {% if is_new %}
+        {% capture badges %}{{ badges }}<span class="featured-merch-card__badge">{{ new_badge_label }}</span>{% endcapture %}
+      {% endif %}
+      {% if bestseller %}
+        {% capture badges %}{{ badges }}<span class="featured-merch-card__badge">{{ bestseller_badge_label }}</span>{% endcapture %}
+      {% endif %}
+      {% if low_stock %}
+        {% capture badges %}{{ badges }}<span class="featured-merch-card__badge">{{ low_stock_badge_label }}</span>{% endcapture %}
+      {% endif %}
+      {% if badges != blank %}
+        <div class="featured-merch-card__badges">{{ badges }}</div>
+      {% endif %}
+      {% if media %}
+        {% assign loading_attr = 'lazy' %}
+        {% if index < preload_count %}
+          {% assign loading_attr = 'eager' %}
+        {% endif %}
+        <a href="{{ product.url }}" class="featured-merch-card__link" aria-label="{{ product.title | escape }}">
+          <img src="{{ media | img_url: '600x' }}" alt="{{ media.alt | escape }}" loading="{{ loading_attr }}" sizes="(min-width: 990px) 25vw, 50vw">
+        </a>
+      {% else %}
+        <div class="featured-merch-card__placeholder" aria-hidden="true"></div>
+      {% endif %}
+    </div>
+    <div class="featured-merch-card__content">
+      {% if show_vendor %}
+        <p class="featured-merch-card__vendor">{{ product.vendor }}</p>
+      {% endif %}
+      <h3 class="featured-merch-card__title"><a href="{{ product.url }}">{{ product.title }}</a></h3>
+      <div class="featured-merch-card__price">
+        {% assign display_price = product.price | money %}
+        {% if product.price_varies %}
+          <span>{{ 'products.product.from_text_html' | t: price: display_price }}</span>
+        {% else %}
+          <span>{{ display_price }}</span>
+        {% endif %}
+        {% if product.compare_at_price_max > product.price %}
+          <s>{{ product.compare_at_price_max | money }}</s>
+        {% endif %}
+      </div>
+      {% if show_review_badge %}
+        <div class="featured-merch-card__review">
+          {% if product.metafields.reviews.rating.value %}
+            {% assign rating = product.metafields.reviews.rating.value %}
+            <span aria-label="Rated {{ rating }} out of 5">{{ rating }} / 5</span>
+          {% else %}
+            {{ review_fallback }}
+          {% endif %}
+        </div>
+      {% endif %}
+      {% if show_inventory_message %}
+        <p class="featured-merch-card__inventory">
+          {% if product.available %}
+            {% if selected_variant.inventory_management and selected_variant.available and selected_variant.inventory_quantity <= low_stock_threshold and selected_variant.inventory_quantity > 0 %}
+              {{ 'Only ' | append: selected_variant.inventory_quantity | append: ' left in stock' }}
+            {% else %}
+              In stock
+            {% endif %}
+          {% else %}
+            Sold out
+          {% endif %}
+        </p>
+      {% endif %}
+      {% if enable_quick_add %}
+        <div class="featured-merch-card__actions">
+          {% if product.available %}
+            {% if product.has_only_default_variant and selected_variant.available %}
+              {% form 'product', product, class: 'featured-merch-card__form' %}
+                <input type="hidden" name="id" value="{{ selected_variant.id }}">
+                <button type="submit" class="button button--primary">
+                  {{ 'products.product.add_to_cart' | t }}
+                </button>
+                {% if enable_dynamic_checkout %}
+                  {{ form | payment_button }}
+                {% endif %}
+              {% endform %}
+            {% else %}
+              <button class="button button--secondary featured-merch-card__modal-trigger" data-open-modal>
+                {{ 'products.product.choose_options' | t }}
+              </button>
+              <div class="featured-merch-card__modal-template" hidden>
+                {% form 'product', product, class: 'featured-merch-card__form' %}
+                  <label for="Modal-{{ section.id }}-{{ product.id }}-variant" class="form__label">{{ 'products.product.choose_options' | t }}</label>
+                  <select id="Modal-{{ section.id }}-{{ product.id }}-variant" name="id" class="select">
+                    {% for variant in product.variants %}
+                      <option value="{{ variant.id }}" {% if variant == selected_variant %}selected{% endif %} {% unless variant.available %}disabled{% endunless %}>
+                        {{ variant.title }}{% if variant.available == false %} - Sold out{% endif %}
+                      </option>
+                    {% endfor %}
+                  </select>
+                  <div class="featured-merch-card__modal-actions">
+                    <button type="submit" class="button button--primary">{{ 'products.product.add_to_cart' | t }}</button>
+                    {% if enable_dynamic_checkout %}
+                      {{ form | payment_button }}
+                    {% endif %}
+                  </div>
+                {% endform %}
+              </div>
+            {% endif %}
+          {% else %}
+            <span class="featured-merch-card__inventory">Sold out</span>
+          {% endif %}
+        </div>
+      {% endif %}
+    </div>
+  </article>
+</div>
