@@ -155,6 +155,48 @@
     gap: 0.75rem;
   }
 
+  .main-hero .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1.75rem;
+    border-radius: 9999px;
+    border: 2px solid transparent;
+    font-weight: 600;
+    text-decoration: none;
+    letter-spacing: 0.02em;
+    transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+  }
+
+  .main-hero .btn:focus-visible {
+    outline: 2px solid currentColor;
+    outline-offset: 2px;
+  }
+
+  .main-hero .btn--primary {
+    background-color: var(--hero-btn-primary-bg, #ffffff);
+    color: var(--hero-btn-primary-color, #111827);
+    box-shadow: 0 10px 20px rgba(17, 24, 39, 0.25);
+  }
+
+  .main-hero .btn--primary:hover,
+  .main-hero .btn--primary:focus-visible {
+    background-color: var(--hero-btn-primary-bg-hover, #f3f4f6);
+    color: var(--hero-btn-primary-color-hover, #111827);
+  }
+
+  .main-hero .btn--secondary {
+    background-color: transparent;
+    color: currentColor;
+    border-color: currentColor;
+  }
+
+  .main-hero .btn--secondary:hover,
+  .main-hero .btn--secondary:focus-visible {
+    background-color: rgba(255, 255, 255, 0.15);
+  }
+
   .hero--align-center .hero__actions {
     justify-content: center;
   }
