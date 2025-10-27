@@ -31,7 +31,10 @@
   assign bestseller_tag = section.settings.bestseller_tag | downcase
   assign collection_overlay = section.settings.collection_overlay
   assign show_inventory_message = section.settings.show_inventory_message
-  assign dual_bucket = display_mode == 'dual'
+  assign dual_bucket = false
+  if display_mode == 'dual'
+    assign dual_bucket = true
+  endif
   assign preload_count = section.settings.preload_count | default: 1
 %}
 
