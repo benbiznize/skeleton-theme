@@ -12,9 +12,14 @@
     "main-hero": {
       "type": "main-hero",
       "settings": {}
+    },
+    "promo-banner": {
+      "type": "promo-offer-banner",
+      "settings": {}
     }
   },
   "order": [
-    "main-hero"
+    "main-hero",
+    "promo-banner"
   ]
 }
