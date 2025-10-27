@@ -1,0 +1,1071 @@
+{% liquid
+  assign display_mode = section.settings.display_mode
+  assign layout_style = section.settings.layout_style
+  assign enable_carousel_nav = layout_style == 'carousel'
+  assign include_tags = section.settings.include_tags | downcase | split: ','
+  assign exclude_tags = section.settings.exclude_tags | downcase | split: ','
+  assign hide_when_empty = section.settings.hide_when_empty
+  assign limit = section.settings.item_limit | default: 8
+  assign base_collection = section.settings.product_collection
+  assign sort_option = section.settings.sort_option
+  assign in_stock_only = section.settings.in_stock_only
+  assign low_stock_threshold = section.settings.low_stock_threshold | default: 5
+  assign show_vendor = section.settings.show_vendor
+  assign show_review_badge = section.settings.show_review_badge
+  assign review_fallback = section.settings.review_fallback | default: 'Rated five stars'
+  assign enable_quick_add = section.settings.enable_quick_add
+  assign enable_dynamic_checkout = section.settings.enable_dynamic_checkout
+  assign modal_id = 'featured-merch-modal-' | append: section.id
+  assign new_badge_days = section.settings.new_badge_days | default: 14
+  assign sale_badge_label = section.settings.sale_badge_label | default: 'Sale'
+  assign new_badge_label = section.settings.new_badge_label | default: 'New'
+  assign bestseller_badge_label = section.settings.bestseller_badge_label | default: 'Bestseller'
+  assign low_stock_badge_label = section.settings.low_stock_badge_label | default: 'Low stock'
+  assign enable_sale_badge = section.settings.enable_sale_badge
+  assign enable_new_badge = section.settings.enable_new_badge
+  assign enable_bestseller_badge = section.settings.enable_bestseller_badge
+  assign enable_low_stock_badge = section.settings.enable_low_stock_badge
+  assign bestseller_tag = section.settings.bestseller_tag | downcase
+  assign collection_overlay = section.settings.collection_overlay
+  assign show_inventory_message = section.settings.show_inventory_message
+  assign dual_bucket = display_mode == 'dual'
+  assign preload_count = section.settings.preload_count | default: 1
+%}
+
+{% capture section_classes %}
+  featured-merch featured-merch--{{ layout_style }}
+  {% if display_mode contains 'collection' %}featured-merch--collection-mode{% endif %}
+{% endcapture %}
+
+{% if dual_bucket %}
+  {% assign bucket_blocks = section.blocks | where: 'type', 'bucket' %}
+  {% assign bucket_count = bucket_blocks.size %}
+  {% if hide_when_empty and bucket_count == 0 %}
+    {% return %}
+  {% endif %}
+{% endif %}
+
+{% capture items_markup %}
+  {% assign item_count = 0 %}
+  {% case display_mode %}
+    {% when 'manual_products' %}
+      {% for block in section.blocks %}
+        {% if block.type == 'product' and block.settings.product != blank %}
+          {% assign product = all_products[block.settings.product] %}
+          {% if product %}
+            {% assign item_count = item_count | plus: 1 %}
+            {% render 'featured-merch-card',
+              type: 'product',
+              product: product,
+              block: block,
+              section: section,
+              show_vendor: show_vendor,
+              show_review_badge: show_review_badge,
+              review_fallback: review_fallback,
+              enable_quick_add: enable_quick_add,
+              enable_dynamic_checkout: enable_dynamic_checkout,
+              modal_id: modal_id,
+              enable_sale_badge: enable_sale_badge,
+              enable_new_badge: enable_new_badge,
+              enable_bestseller_badge: enable_bestseller_badge,
+              enable_low_stock_badge: enable_low_stock_badge,
+              new_badge_days: new_badge_days,
+              sale_badge_label: sale_badge_label,
+              new_badge_label: new_badge_label,
+              bestseller_badge_label: bestseller_badge_label,
+              low_stock_badge_label: low_stock_badge_label,
+              bestseller_tag: bestseller_tag,
+              low_stock_threshold: low_stock_threshold,
+              show_inventory_message: show_inventory_message,
+              preload_count: preload_count,
+              index: forloop.index0
+            %}
+          {% endif %}
+        {% endif %}
+      {% endfor %}
+    {% when 'collections' %}
+      {% for block in section.blocks %}
+        {% if block.type == 'collection' and block.settings.collection != blank %}
+          {% assign collection = collections[block.settings.collection] %}
+          {% if collection %}
+            {% assign item_count = item_count | plus: 1 %}
+            <div class="featured-merch__item" {{ block.shopify_attributes }}>
+              {% render 'featured-merch-collection-card',
+                collection: collection,
+                collection_overlay: collection_overlay,
+                preload: forloop.index0 < preload_count,
+                index: forloop.index0
+              %}
+            </div>
+          {% endif %}
+        {% endif %}
+      {% endfor %}
+    {% when 'collection_products' %}
+      {% if base_collection %}
+        {% assign collection = collections[base_collection] %}
+        {% if collection %}
+          {% assign working_products = collection.products %}
+          {% if sort_option != blank %}
+            {% case sort_option %}
+              {% when 'price_asc' %}
+                {% assign working_products = working_products | sort: 'price' %}
+              {% when 'price_desc' %}
+                {% assign working_products = working_products | sort: 'price' | reverse %}
+              {% when 'date' %}
+                {% assign working_products = working_products | sort: 'published_at' | reverse %}
+              {% when 'manual' %}
+                {% assign working_products = collection.products %}
+              {% when 'best_selling' %}
+                {% assign working_products = collection.products %}
+            {% endcase %}
+          {% endif %}
+          {% for product in working_products limit: limit %}
+            {% assign tag_string = product.tags | join: '|' | downcase %}
+            {% if include_tags.first != blank %}
+              {% assign include_hit = false %}
+              {% for t in include_tags %}
+                {% assign t = t | strip %}
+                {% if t != blank and tag_string contains t %}
+                  {% assign include_hit = true %}
+                {% endif %}
+              {% endfor %}
+              {% unless include_hit %}
+                {% continue %}
+              {% endunless %}
+            {% endif %}
+            {% assign exclude_match = false %}
+            {% for t in exclude_tags %}
+              {% assign t = t | strip %}
+              {% if t != blank and tag_string contains t %}
+                {% assign exclude_match = true %}
+              {% endif %}
+            {% endfor %}
+            {% if exclude_match %}
+              {% continue %}
+            {% endif %}
+            {% if in_stock_only and product.available == false %}
+              {% continue %}
+            {% endif %}
+            {% assign item_count = item_count | plus: 1 %}
+            {% render 'featured-merch-card',
+              type: 'product',
+              product: product,
+              section: section,
+              show_vendor: show_vendor,
+              show_review_badge: show_review_badge,
+              review_fallback: review_fallback,
+              enable_quick_add: enable_quick_add,
+              enable_dynamic_checkout: enable_dynamic_checkout,
+              modal_id: modal_id,
+              enable_sale_badge: enable_sale_badge,
+              enable_new_badge: enable_new_badge,
+              enable_bestseller_badge: enable_bestseller_badge,
+              enable_low_stock_badge: enable_low_stock_badge,
+              new_badge_days: new_badge_days,
+              sale_badge_label: sale_badge_label,
+              new_badge_label: new_badge_label,
+              bestseller_badge_label: bestseller_badge_label,
+              low_stock_badge_label: low_stock_badge_label,
+              bestseller_tag: bestseller_tag,
+              low_stock_threshold: low_stock_threshold,
+              show_inventory_message: show_inventory_message,
+              preload_count: preload_count,
+              index: forloop.index0
+            %}
+          {% endfor %}
+        {% endif %}
+      {% endif %}
+    {% when 'tag_query' %}
+      {% assign matched_products = '' %}
+      {% assign base_collection = section.settings.query_collection %}
+      {% if base_collection %}
+        {% assign query_collection = collections[base_collection] %}
+        {% if query_collection %}
+          {% assign working_products = query_collection.products %}
+          {% for product in working_products %}
+            {% assign tag_string = product.tags | join: '|' | downcase %}
+            {% assign include_hit = false %}
+            {% for t in include_tags %}
+              {% assign t = t | strip %}
+              {% if t == blank or tag_string contains t %}
+                {% assign include_hit = true %}
+              {% endif %}
+            {% endfor %}
+            {% if include_tags.first == blank %}
+              {% assign include_hit = true %}
+            {% endif %}
+            {% if include_hit %}
+              {% assign exclude_match = false %}
+              {% for t in exclude_tags %}
+                {% assign t = t | strip %}
+                {% if t != blank and tag_string contains t %}
+                  {% assign exclude_match = true %}
+                {% endif %}
+              {% endfor %}
+              {% unless exclude_match %}
+                {% if in_stock_only and product.available == false %}
+                  {% continue %}
+                {% endif %}
+                {% capture matched_products %}{{ matched_products }}{{ product.handle }}|{% endcapture %}
+              {% endunless %}
+            {% endif %}
+          {% endfor %}
+          {% assign handles = matched_products | split: '|' %}
+          {% for handle in handles %}
+            {% if handle == blank %}
+              {% continue %}
+            {% endif %}
+            {% assign product = all_products[handle] %}
+            {% if product %}
+              {% assign item_count = item_count | plus: 1 %}
+              {% render 'featured-merch-card',
+                type: 'product',
+                product: product,
+                section: section,
+                show_vendor: show_vendor,
+                show_review_badge: show_review_badge,
+                review_fallback: review_fallback,
+                enable_quick_add: enable_quick_add,
+                enable_dynamic_checkout: enable_dynamic_checkout,
+                modal_id: modal_id,
+                enable_sale_badge: enable_sale_badge,
+                enable_new_badge: enable_new_badge,
+                enable_bestseller_badge: enable_bestseller_badge,
+                enable_low_stock_badge: enable_low_stock_badge,
+                new_badge_days: new_badge_days,
+                sale_badge_label: sale_badge_label,
+                new_badge_label: new_badge_label,
+                bestseller_badge_label: bestseller_badge_label,
+                low_stock_badge_label: low_stock_badge_label,
+                bestseller_tag: bestseller_tag,
+                low_stock_threshold: low_stock_threshold,
+                show_inventory_message: show_inventory_message,
+                preload_count: preload_count,
+                index: forloop.index0
+              %}
+            {% endif %}
+            {% if forloop.index >= limit %}
+              {% break %}
+            {% endif %}
+          {% endfor %}
+        {% endif %}
+      {% endif %}
+    {% when 'dual' %}
+      {% assign item_count = bucket_count %}
+  {% endcase %}
+{% endcapture %}
+
+{% if hide_when_empty and item_count == 0 and dual_bucket == false %}
+  {% return %}
+{% endif %}
+
+<div class="{{ section_classes | strip }}" data-section-id="{{ section.id }}">
+  <div class="featured-merch__inner page-width">
+    {% if section.settings.heading != blank or section.settings.subheading != blank %}
+      <div class="featured-merch__header">
+        {% if section.settings.heading != blank %}
+          <h2 class="featured-merch__title">{{ section.settings.heading | escape }}</h2>
+        {% endif %}
+        {% if section.settings.subheading != blank %}
+          <p class="featured-merch__subheading">{{ section.settings.subheading }}</p>
+        {% endif %}
+      </div>
+    {% endif %}
+
+    {% if dual_bucket %}
+      <div class="featured-merch__dual">
+        {% for block in bucket_blocks %}
+          <section class="featured-merch__bucket" {{ block.shopify_attributes }}>
+            {% if block.settings.heading != blank %}
+              <header class="featured-merch__bucket-header">
+                <h3 class="featured-merch__bucket-title">{{ block.settings.heading }}</h3>
+                {% if block.settings.subheading != blank %}
+                  <p class="featured-merch__bucket-subheading">{{ block.settings.subheading }}</p>
+                {% endif %}
+              </header>
+            {% endif %}
+            {% assign bucket_collection = collections[block.settings.collection] %}
+            {% assign bucket_item_count = 0 %}
+            {% capture bucket_markup %}
+              {% if bucket_collection %}
+                {% for product in bucket_collection.products limit: block.settings.limit %}
+                  {% if block.settings.in_stock_only and product.available == false %}
+                    {% continue %}
+                  {% endif %}
+                  {% assign bucket_item_count = bucket_item_count | plus: 1 %}
+                  {% render 'featured-merch-card',
+                    type: 'product',
+                    product: product,
+                    section: section,
+                    show_vendor: block.settings.show_vendor,
+                    show_review_badge: block.settings.show_review_badge,
+                    review_fallback: review_fallback,
+                    enable_quick_add: enable_quick_add,
+                    enable_dynamic_checkout: enable_dynamic_checkout,
+                    modal_id: modal_id,
+                    enable_sale_badge: enable_sale_badge,
+                    enable_new_badge: enable_new_badge,
+                    enable_bestseller_badge: enable_bestseller_badge,
+                    enable_low_stock_badge: enable_low_stock_badge,
+                    new_badge_days: new_badge_days,
+                    sale_badge_label: sale_badge_label,
+                    new_badge_label: new_badge_label,
+                    bestseller_badge_label: bestseller_badge_label,
+                    low_stock_badge_label: low_stock_badge_label,
+                    bestseller_tag: bestseller_tag,
+                    low_stock_threshold: low_stock_threshold,
+                    show_inventory_message: block.settings.show_inventory_message,
+                    preload_count: preload_count,
+                    index: forloop.index0
+                  %}
+                {% endfor %}
+              {% endif %}
+            {% endcapture %}
+            {% if block.settings.hide_when_empty and bucket_item_count == 0 %}
+              {% continue %}
+            {% endif %}
+            <div class="featured-merch__items" data-layout="{{ block.settings.layout_style }}">
+              {{ bucket_markup }}
+            </div>
+          </section>
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="featured-merch__body">
+        <div class="featured-merch__viewport" id="Carousel-{{ section.id }}" data-layout="{{ layout_style }}" role="region" aria-label="{{ section.settings.heading | default: 'Featured items' | escape }}" tabindex="0">
+          <div class="featured-merch__items" data-layout="{{ layout_style }}">
+            {{ items_markup }}
+          </div>
+        </div>
+        {% if enable_carousel_nav %}
+          <div class="featured-merch__controls">
+            <button type="button" class="featured-merch__control featured-merch__control--prev" aria-controls="Carousel-{{ section.id }}" aria-label="Previous items">
+              <span aria-hidden="true">&larr;</span>
+            </button>
+            <button type="button" class="featured-merch__control featured-merch__control--next" aria-controls="Carousel-{{ section.id }}" aria-label="Next items">
+              <span aria-hidden="true">&rarr;</span>
+            </button>
+          </div>
+        {% endif %}
+      </div>
+    {% endif %}
+  </div>
+
+  {% if enable_quick_add %}
+    <dialog id="{{ modal_id }}" class="featured-merch__modal" aria-label="{{ 'products.product.choose_options' | t }}">
+      <div class="featured-merch__modal-content" data-modal-content role="document">
+        <button type="button" class="featured-merch__modal-close" data-modal-close aria-label="{{ 'accessibility.close' | t }}">&times;</button>
+        <div class="featured-merch__modal-body" data-modal-body></div>
+      </div>
+    </dialog>
+  {% endif %}
+</div>
+
+<style>
+  .featured-merch {
+    position: relative;
+    padding: var(--spacing-8, 3rem) 0;
+    color: var(--color-foreground, rgb(var(--color-base-text)));
+  }
+  .featured-merch__inner {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-6, 2rem);
+  }
+  .featured-merch__header {
+    text-align: center;
+  }
+  .featured-merch__title {
+    margin: 0;
+    font-size: var(--font-heading-scale, clamp(1.875rem, 1.4vw + 1.5rem, 2.5rem));
+  }
+  .featured-merch__subheading {
+    margin: 0.5rem 0 0;
+    color: var(--color-foreground-secondary, rgba(var(--color-base-text), 0.7));
+  }
+  .featured-merch__body {
+    position: relative;
+  }
+  .featured-merch__items {
+    display: grid;
+    gap: var(--grid-gutter, 1.5rem);
+  }
+  .featured-merch__item {
+    min-width: 0;
+  }
+  .featured-merch__items[data-layout="grid"] {
+    grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
+  }
+  .featured-merch__items[data-layout="carousel"] {
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(16rem, 1fr);
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    gap: var(--grid-gutter, 1.25rem);
+    padding-bottom: 1rem;
+  }
+  .featured-merch__items[data-layout="carousel"]::-webkit-scrollbar {
+    display: none;
+  }
+  .featured-merch__items[data-layout="carousel"] > * {
+    scroll-snap-align: start;
+  }
+  .featured-merch__controls {
+    display: flex;
+    justify-content: center;
+    gap: 1rem;
+    margin-top: 1rem;
+  }
+  .featured-merch__control {
+    appearance: none;
+    border: 1px solid var(--color-border, rgba(var(--color-base-text), 0.2));
+    border-radius: 999px;
+    padding: 0.75rem 1.25rem;
+    background: var(--color-background, #fff);
+    color: inherit;
+    cursor: pointer;
+  }
+  .featured-merch__control:focus {
+    outline: 2px solid currentColor;
+    outline-offset: 2px;
+  }
+  .featured-merch-card {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    border-radius: var(--card-radius, 0.75rem);
+    background: var(--color-card-background, rgba(var(--color-base-text), 0.03));
+    padding: var(--card-padding, 1rem);
+    border: 1px solid transparent;
+  }
+  .featured-merch-card--minimal {
+    background: transparent;
+    padding: 0;
+  }
+  .featured-merch-card--outline {
+    background: transparent;
+    border-color: rgba(var(--color-base-text), 0.15);
+  }
+  .featured-merch-card--collection {
+    height: 100%;
+  }
+  .featured-merch-card__media {
+    position: relative;
+    overflow: hidden;
+    border-radius: inherit;
+    background: var(--color-image-placeholder, rgba(var(--color-base-text), 0.06));
+  }
+  .featured-merch-card__media::before {
+    content: "";
+    display: block;
+    padding-top: var(--media-aspect, 100%);
+  }
+  .featured-merch-card__media img {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+  .featured-merch-card__link {
+    display: block;
+    color: inherit;
+    text-decoration: none;
+  }
+  .featured-merch-card__placeholder {
+    position: absolute;
+    inset: 0;
+    background: repeating-linear-gradient(45deg, rgba(var(--color-base-text), 0.08), rgba(var(--color-base-text), 0.08) 10px, rgba(var(--color-base-text), 0.02) 10px, rgba(var(--color-base-text), 0.02) 20px);
+  }
+  .featured-merch-card__badges {
+    position: absolute;
+    top: 0.75rem;
+    left: 0.75rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  .featured-merch-card__badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.25rem 0.5rem;
+    border-radius: 999px;
+    background: var(--color-badge-background, rgba(var(--color-base-text), 0.85));
+    color: var(--color-badge-text, #fff);
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  .featured-merch-card__title {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 600;
+  }
+  .featured-merch-card__title a {
+    color: inherit;
+    text-decoration: none;
+  }
+  .featured-merch-card__title a:hover,
+  .featured-merch-card__title a:focus {
+    text-decoration: underline;
+  }
+  .featured-merch-card__vendor {
+    font-size: 0.875rem;
+    color: var(--color-foreground-secondary, rgba(var(--color-base-text), 0.65));
+  }
+  .featured-merch-card__price {
+    display: flex;
+    gap: 0.75rem;
+    align-items: baseline;
+    font-size: 1rem;
+  }
+  .featured-merch-card__content {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  .featured-merch-card__price s {
+    color: var(--color-foreground-secondary, rgba(var(--color-base-text), 0.5));
+    font-size: 0.875rem;
+  }
+  .featured-merch-card__inventory {
+    font-size: 0.875rem;
+    color: var(--color-accent, rgb(var(--color-base-accent)));
+  }
+  .featured-merch-card__review {
+    font-size: 0.8125rem;
+    color: var(--color-foreground-secondary, rgba(var(--color-base-text), 0.7));
+  }
+  .featured-merch-card__actions {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  .featured-merch-card__modal-trigger {
+    width: 100%;
+  }
+  .featured-merch-card__form {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  .featured-merch-card__modal-template {
+    display: none;
+  }
+  .featured-merch-card__modal-actions {
+    display: flex;
+    gap: 0.5rem;
+    margin-top: 1rem;
+  }
+  .featured-merch-card__description {
+    margin-top: 0.5rem;
+    color: var(--color-foreground-secondary, rgba(var(--color-base-text), 0.65));
+  }
+  .featured-merch-card__overlay {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    padding: 1rem;
+    background: linear-gradient(0deg, rgba(0,0,0,0.6), transparent);
+    color: #fff;
+  }
+  .featured-merch-card__overlay-title {
+    margin: 0;
+    font-size: 1rem;
+  }
+  .featured-merch-card__overlay-price {
+    margin: 0.25rem 0 0;
+    font-size: 0.875rem;
+  }
+  .featured-merch__modal {
+    display: none;
+  }
+  .featured-merch__modal[open] {
+    display: block;
+  }
+  .featured-merch__modal::backdrop {
+    background: rgba(0,0,0,0.4);
+  }
+  .featured-merch__modal-content {
+    background: var(--color-background, #fff);
+    padding: 2rem;
+    max-width: 480px;
+    margin: 10vh auto;
+    border-radius: 0.75rem;
+    position: relative;
+  }
+  .featured-merch__modal-close {
+    position: absolute;
+    top: 0.5rem;
+    right: 0.5rem;
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    cursor: pointer;
+  }
+  .featured-merch__dual {
+    display: grid;
+    gap: 3rem;
+  }
+  .featured-merch__bucket {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+  }
+  .featured-merch__bucket-header {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  .featured-merch__bucket-title {
+    margin: 0;
+    font-size: clamp(1.25rem, 1.2vw + 1rem, 2rem);
+  }
+  .featured-merch__bucket-subheading {
+    margin: 0;
+    color: var(--color-foreground-secondary, rgba(var(--color-base-text), 0.65));
+  }
+  @media (min-width: 52rem) {
+    .featured-merch__dual {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+</style>
+
+{% schema %}
+{
+  "name": "Featured merchandising",
+  "tag": "section",
+  "class": "section",
+  "settings": [
+    {
+      "type": "text",
+      "id": "heading",
+      "label": "Heading",
+      "default": "Hand-picked highlights"
+    },
+    {
+      "type": "richtext",
+      "id": "subheading",
+      "label": "Subheading",
+      "default": "Showcase your latest drops, bestsellers, or curated collections."
+    },
+    {
+      "type": "select",
+      "id": "display_mode",
+      "label": "Display content",
+      "default": "manual_products",
+      "options": [
+        {"value": "manual_products", "label": "Manual product list"},
+        {"value": "collection_products", "label": "Collection products"},
+        {"value": "tag_query", "label": "Tag query"},
+        {"value": "collections", "label": "Collections"},
+        {"value": "dual", "label": "Dual showcase"}
+      ]
+    },
+    {
+      "type": "select",
+      "id": "layout_style",
+      "label": "Layout",
+      "default": "grid",
+      "options": [
+        {"value": "grid", "label": "Grid"},
+        {"value": "carousel", "label": "Carousel"}
+      ]
+    },
+    {
+      "type": "select",
+      "id": "card_style",
+      "label": "Card style",
+      "default": "filled",
+      "options": [
+        {"value": "filled", "label": "Filled"},
+        {"value": "outline", "label": "Outline"},
+        {"value": "minimal", "label": "Minimal"}
+      ]
+    },
+    {
+      "type": "collection",
+      "id": "product_collection",
+      "label": "Collection source",
+      "info": "Used for collection product and tag query modes."
+    },
+    {
+      "type": "collection",
+      "id": "query_collection",
+      "label": "Tag query fallback collection",
+      "info": "Products will be filtered from this collection when using tag query mode."
+    },
+    {
+      "type": "number",
+      "id": "item_limit",
+      "label": "Max items",
+      "default": 8,
+      "min": 1,
+      "max": 20
+    },
+    {
+      "type": "text",
+      "id": "include_tags",
+      "label": "Require tags",
+      "info": "Comma-separated tag list. Leave blank to ignore."
+    },
+    {
+      "type": "text",
+      "id": "exclude_tags",
+      "label": "Exclude tags",
+      "info": "Comma-separated tag list to skip."
+    },
+    {
+      "type": "checkbox",
+      "id": "in_stock_only",
+      "label": "Only show in-stock",
+      "default": false
+    },
+    {
+      "type": "checkbox",
+      "id": "hide_when_empty",
+      "label": "Hide section when no items",
+      "default": false
+    },
+    {
+      "type": "select",
+      "id": "sort_option",
+      "label": "Sort products",
+      "default": "manual",
+      "options": [
+        {"value": "manual", "label": "Collection order"},
+        {"value": "best_selling", "label": "Best selling"},
+        {"value": "price_asc", "label": "Price, low to high"},
+        {"value": "price_desc", "label": "Price, high to low"},
+        {"value": "date", "label": "Newest"}
+      ]
+    },
+    {
+      "type": "checkbox",
+      "id": "show_vendor",
+      "label": "Show vendor",
+      "default": true
+    },
+    {
+      "type": "checkbox",
+      "id": "show_review_badge",
+      "label": "Show review badge",
+      "default": true
+    },
+    {
+      "type": "text",
+      "id": "review_fallback",
+      "label": "Review badge fallback text",
+      "default": "★★★★★ Rated by shoppers"
+    },
+    {
+      "type": "number",
+      "id": "low_stock_threshold",
+      "label": "Low stock threshold",
+      "default": 5,
+      "min": 0,
+      "max": 50
+    },
+    {
+      "type": "checkbox",
+      "id": "show_inventory_message",
+      "label": "Show inventory message",
+      "default": true
+    },
+    {
+      "type": "checkbox",
+      "id": "enable_quick_add",
+      "label": "Enable quick add",
+      "default": true
+    },
+    {
+      "type": "checkbox",
+      "id": "enable_dynamic_checkout",
+      "label": "Show dynamic checkout button",
+      "default": false
+    },
+    {
+      "type": "range",
+      "id": "preload_count",
+      "label": "Preload first items",
+      "default": 1,
+      "min": 0,
+      "max": 6
+    },
+    {
+      "type": "checkbox",
+      "id": "enable_sale_badge",
+      "label": "Enable sale badge",
+      "default": true
+    },
+    {
+      "type": "text",
+      "id": "sale_badge_label",
+      "label": "Sale badge label",
+      "default": "Sale"
+    },
+    {
+      "type": "checkbox",
+      "id": "enable_new_badge",
+      "label": "Enable new badge",
+      "default": true
+    },
+    {
+      "type": "text",
+      "id": "new_badge_label",
+      "label": "New badge label",
+      "default": "New"
+    },
+    {
+      "type": "number",
+      "id": "new_badge_days",
+      "label": "Mark as new for (days)",
+      "default": 14,
+      "min": 1,
+      "max": 60
+    },
+    {
+      "type": "checkbox",
+      "id": "enable_bestseller_badge",
+      "label": "Enable bestseller badge",
+      "default": false
+    },
+    {
+      "type": "text",
+      "id": "bestseller_badge_label",
+      "label": "Bestseller badge label",
+      "default": "Bestseller"
+    },
+    {
+      "type": "text",
+      "id": "bestseller_tag",
+      "label": "Bestseller tag trigger",
+      "info": "Products with this tag show the badge."
+    },
+    {
+      "type": "checkbox",
+      "id": "enable_low_stock_badge",
+      "label": "Enable low stock badge",
+      "default": true
+    },
+    {
+      "type": "text",
+      "id": "low_stock_badge_label",
+      "label": "Low stock badge label",
+      "default": "Low stock"
+    },
+    {
+      "type": "checkbox",
+      "id": "collection_overlay",
+      "label": "Show featured product overlay on collections",
+      "default": false
+    }
+  ],
+  "blocks": [
+    {
+      "type": "product",
+      "name": "Product",
+      "settings": [
+        {
+          "type": "product",
+          "id": "product",
+          "label": "Product"
+        }
+      ]
+    },
+    {
+      "type": "collection",
+      "name": "Collection",
+      "settings": [
+        {
+          "type": "collection",
+          "id": "collection",
+          "label": "Collection"
+        }
+      ]
+    },
+    {
+      "type": "bucket",
+      "name": "Showcase bucket",
+      "limit": 2,
+      "settings": [
+        {
+          "type": "text",
+          "id": "heading",
+          "label": "Bucket heading",
+          "default": "Plants"
+        },
+        {
+          "type": "text",
+          "id": "subheading",
+          "label": "Bucket subheading"
+        },
+        {
+          "type": "collection",
+          "id": "collection",
+          "label": "Product collection"
+        },
+        {
+          "type": "checkbox",
+          "id": "in_stock_only",
+          "label": "Only show in-stock",
+          "default": false
+        },
+        {
+          "type": "number",
+          "id": "limit",
+          "label": "Max products",
+          "default": 4,
+          "min": 1,
+          "max": 12
+        },
+        {
+          "type": "checkbox",
+          "id": "hide_when_empty",
+          "label": "Hide when empty",
+          "default": true
+        },
+        {
+          "type": "select",
+          "id": "layout_style",
+          "label": "Layout",
+          "default": "grid",
+          "options": [
+            {"value": "grid", "label": "Grid"},
+            {"value": "carousel", "label": "Carousel"}
+          ]
+        },
+        {
+          "type": "checkbox",
+          "id": "show_vendor",
+          "label": "Show vendor",
+          "default": true
+        },
+        {
+          "type": "checkbox",
+          "id": "show_inventory_message",
+          "label": "Show inventory message",
+          "default": true
+        },
+        {
+          "type": "checkbox",
+          "id": "show_review_badge",
+          "label": "Show review badge",
+          "default": false
+        }
+      ]
+    }
+  ],
+  "presets": [
+    {
+      "name": "Featured Products (Grid)",
+      "category": "Featured",
+      "settings": {
+        "display_mode": "manual_products",
+        "layout_style": "grid"
+      },
+      "blocks": [
+        {"type": "product"},
+        {"type": "product"},
+        {"type": "product"},
+        {"type": "product"}
+      ]
+    },
+    {
+      "name": "Featured Products (Carousel)",
+      "category": "Featured",
+      "settings": {
+        "display_mode": "collection_products",
+        "layout_style": "carousel"
+      },
+      "blocks": []
+    },
+    {
+      "name": "Featured Collections",
+      "category": "Collection",
+      "settings": {
+        "display_mode": "collections",
+        "layout_style": "grid"
+      },
+      "blocks": [
+        {"type": "collection"},
+        {"type": "collection"},
+        {"type": "collection"}
+      ]
+    },
+    {
+      "name": "Dual Showcase (Plants & Studios)",
+      "category": "Merchandising",
+      "settings": {
+        "display_mode": "dual",
+        "layout_style": "grid"
+      },
+      "blocks": [
+        {"type": "bucket", "settings": {"heading": "Plants"}},
+        {"type": "bucket", "settings": {"heading": "Studios"}}
+      ]
+    }
+  ]
+}
+{% endschema %}
+
+{% javascript %}
+  class FeaturedMerch {
+    constructor(element) {
+      this.el = element;
+      this.viewport = this.el.querySelector('.featured-merch__items[data-layout="carousel"]');
+      this.prev = this.el.querySelector('.featured-merch__control--prev');
+      this.next = this.el.querySelector('.featured-merch__control--next');
+      this.modal = this.el.querySelector('dialog');
+      this.body = this.modal?.querySelector('[data-modal-body]');
+      this.handleNav();
+      this.handleModal();
+    }
+    handleNav() {
+      if (!this.viewport) return;
+      const scrollAmount = () => this.viewport.clientWidth * 0.8;
+      this.prev?.addEventListener('click', () => this.viewport.scrollBy({ left: -scrollAmount(), behavior: 'smooth' }));
+      this.next?.addEventListener('click', () => this.viewport.scrollBy({ left: scrollAmount(), behavior: 'smooth' }));
+    }
+    handleModal() {
+      if (!this.modal || !this.body) return;
+      this.modal.addEventListener('close', () => {
+        this.body.innerHTML = '';
+      });
+      this.el.addEventListener('click', (event) => {
+        const trigger = event.target.closest('[data-open-modal]');
+        if (trigger) {
+          event.preventDefault();
+          const template = trigger.nextElementSibling?.cloneNode(true);
+          if (!template) return;
+          template.removeAttribute('hidden');
+          this.body.innerHTML = '';
+          this.body.appendChild(template);
+          if (typeof this.modal.showModal === 'function') {
+            this.modal.showModal();
+          } else {
+            this.modal.setAttribute('open', 'open');
+          }
+        }
+        if (event.target.closest('[data-modal-close]')) {
+          if (typeof this.modal.close === 'function') {
+            this.modal.close();
+          } else {
+            this.modal.removeAttribute('open');
+            this.body.innerHTML = '';
+          }
+        }
+      });
+    }
+  }
+
+  document.querySelectorAll('.featured-merch').forEach((section) => {
+    if (!section.dataset.initialized) {
+      section.dataset.initialized = 'true';
+      new FeaturedMerch(section);
+    }
+  });
+{% endjavascript %}
