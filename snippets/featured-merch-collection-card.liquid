@@ -1,0 +1,46 @@
+{% liquid
+  assign featured_media = collection.featured_image
+  assign product_overlay = collection.products.first
+  assign aspect_ratio = 1
+  if featured_media and featured_media.aspect_ratio
+    assign aspect_ratio = featured_media.aspect_ratio
+  elsif product_overlay and product_overlay.featured_media.aspect_ratio
+    assign aspect_ratio = product_overlay.featured_media.aspect_ratio
+  endif
+  if aspect_ratio > 0
+    assign padding_percent = 100 | divided_by: aspect_ratio | round: 2
+  else
+    assign padding_percent = 100
+  endif
+  assign loading_attr = preload | default: false
+  if loading_attr
+    assign loading_attr = 'eager'
+  else
+    assign loading_attr = 'lazy'
+  endif
+%}
+<article class="featured-merch-card featured-merch-card--collection">
+  <div class="featured-merch-card__media" style="--media-aspect: {{ padding_percent }}%;">
+    <a href="{{ collection.url }}" class="featured-merch-card__link">
+      {% if featured_media %}
+        <img src="{{ featured_media | img_url: '600x' }}" alt="{{ featured_media.alt | escape }}" loading="{{ loading_attr }}" sizes="(min-width: 990px) 25vw, 50vw">
+      {% elsif product_overlay and product_overlay.featured_media %}
+        <img src="{{ product_overlay.featured_media | img_url: '600x' }}" alt="{{ product_overlay.title | escape }}" loading="{{ loading_attr }}" sizes="(min-width: 990px) 25vw, 50vw">
+      {% else %}
+        <div class="featured-merch-card__placeholder" aria-hidden="true"></div>
+      {% endif %}
+    </a>
+    {% if collection_overlay and product_overlay %}
+      <div class="featured-merch-card__overlay">
+        <h4 class="featured-merch-card__overlay-title">{{ product_overlay.title }}</h4>
+        <p class="featured-merch-card__overlay-price">{{ product_overlay.price | money }}</p>
+      </div>
+    {% endif %}
+  </div>
+  <div class="featured-merch-card__content">
+    <h3 class="featured-merch-card__title"><a href="{{ collection.url }}">{{ collection.title }}</a></h3>
+    {% if collection.description != blank %}
+      <p class="featured-merch-card__description">{{ collection.description | strip_html | truncate: 100 }}</p>
+    {% endif %}
+  </div>
+</article>
