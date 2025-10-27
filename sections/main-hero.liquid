@@ -1,0 +1,334 @@
+{% liquid
+  assign aria_label = section.settings.accessibility_label | default: section.settings.heading | default: 'Hero banner'
+  assign overlay_opacity = section.settings.overlay_opacity | default: 0
+  assign overlay_alpha = overlay_opacity | times: 0.01
+  assign overlay_color = section.settings.overlay_color | default: '#000000'
+  assign content_alignment = section.settings.content_alignment | default: 'center'
+%}
+<section
+  id="main-hero-{{ section.id }}"
+  class="main-hero hero--align-{{ content_alignment }}{% if section.settings.background_image != blank %} hero--has-media{% endif %}"
+  aria-label="{{ aria_label | escape }}"
+  style="--hero-content-max-width: {{ section.settings.content_max_width | default: 720 }}px;"
+>
+  <div class="hero__media" aria-hidden="true">
+    {% if section.settings.background_image != blank %}
+      <picture>
+        {% if section.settings.mobile_background_image != blank %}
+          <source media="(max-width: 749px)" srcset="{{ section.settings.mobile_background_image | image_url: width: 1200 }}">
+        {% endif %}
+        {{ section.settings.background_image | image_tag: class: 'hero__image', widths: '800,1200,1600,2000,2400', sizes: '100vw', loading: 'lazy' }}
+      </picture>
+    {% endif %}
+
+    {% if overlay_opacity > 0 %}
+      <div class="hero__overlay" style="--overlay-color: {{ overlay_color }}; --overlay-opacity: {{ overlay_alpha }}"></div>
+    {% endif %}
+  </div>
+
+  <div class="hero__inner">
+    <div class="hero__content">
+      {% if section.settings.eyebrow != blank %}
+        <p class="hero__eyebrow">{{ section.settings.eyebrow | escape }}</p>
+      {% endif %}
+
+      {% if section.settings.heading != blank %}
+        <h1 class="hero__heading">{{ section.settings.heading | escape }}</h1>
+      {% endif %}
+
+      {% if section.settings.subheading != blank %}
+        <div class="hero__subheading rte">{{ section.settings.subheading }}</div>
+      {% endif %}
+
+      {% if section.settings.primary_button_label != blank and section.settings.primary_button_link != blank or section.settings.show_secondary_button and section.settings.secondary_button_label != blank and section.settings.secondary_button_link != blank %}
+        <div class="hero__actions">
+          {% if section.settings.primary_button_label != blank and section.settings.primary_button_link != blank %}
+            <a class="btn btn--primary" href="{{ section.settings.primary_button_link }}">
+              {{ section.settings.primary_button_label | escape }}
+            </a>
+          {% endif %}
+
+          {% if section.settings.show_secondary_button and section.settings.secondary_button_label != blank and section.settings.secondary_button_link != blank %}
+            <a class="btn btn--secondary" href="{{ section.settings.secondary_button_link }}">
+              {{ section.settings.secondary_button_label | escape }}
+            </a>
+          {% endif %}
+        </div>
+      {% endif %}
+    </div>
+  </div>
+</section>
+
+{% stylesheet %}
+  .main-hero {
+    position: relative;
+    display: block;
+    overflow: hidden;
+    background-color: var(--color-background, #111827);
+    color: var(--color-foreground, #ffffff);
+  }
+
+  .main-hero .hero__media {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    width: 100%;
+    height: 100%;
+  }
+
+  .main-hero .hero__media picture,
+  .main-hero .hero__media img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+
+  .main-hero .hero__overlay {
+    position: absolute;
+    inset: 0;
+    background-color: var(--overlay-color, rgba(17, 24, 39, 0.65));
+    opacity: var(--overlay-opacity, 0);
+  }
+
+  .main-hero .hero__inner {
+    position: relative;
+    z-index: 2;
+    display: flex;
+    align-items: center;
+    padding: 64px 20px;
+    min-height: 320px;
+  }
+
+  .main-hero .hero__content {
+    width: min(100%, var(--hero-content-max-width, 720px));
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .hero--align-left .hero__content {
+    margin-left: 0;
+    margin-right: auto;
+    text-align: left;
+    align-items: flex-start;
+  }
+
+  .hero--align-center .hero__content {
+    margin-left: auto;
+    margin-right: auto;
+    text-align: center;
+    align-items: center;
+  }
+
+  .hero--align-right .hero__content {
+    margin-left: auto;
+    margin-right: 0;
+    text-align: right;
+    align-items: flex-end;
+  }
+
+  .main-hero .hero__eyebrow {
+    font-size: 0.875rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin: 0;
+  }
+
+  .main-hero .hero__heading {
+    margin: 0;
+    font-size: clamp(2rem, 8vw, 3.5rem);
+    line-height: 1.1;
+  }
+
+  .main-hero .hero__subheading {
+    font-size: 1rem;
+  }
+
+  .main-hero .hero__subheading :where(p) {
+    margin: 0;
+  }
+
+  .main-hero .hero__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+  }
+
+  .main-hero .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1.75rem;
+    border-radius: 9999px;
+    border: 2px solid transparent;
+    font-weight: 600;
+    text-decoration: none;
+    letter-spacing: 0.02em;
+    transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+  }
+
+  .main-hero .btn:focus-visible {
+    outline: 2px solid currentColor;
+    outline-offset: 2px;
+  }
+
+  .main-hero .btn--primary {
+    background-color: var(--hero-btn-primary-bg, #ffffff);
+    color: var(--hero-btn-primary-color, #111827);
+    box-shadow: 0 10px 20px rgba(17, 24, 39, 0.25);
+  }
+
+  .main-hero .btn--primary:hover,
+  .main-hero .btn--primary:focus-visible {
+    background-color: var(--hero-btn-primary-bg-hover, #f3f4f6);
+    color: var(--hero-btn-primary-color-hover, #111827);
+  }
+
+  .main-hero .btn--secondary {
+    background-color: transparent;
+    color: currentColor;
+    border-color: currentColor;
+  }
+
+  .main-hero .btn--secondary:hover,
+  .main-hero .btn--secondary:focus-visible {
+    background-color: rgba(255, 255, 255, 0.15);
+  }
+
+  .hero--align-center .hero__actions {
+    justify-content: center;
+  }
+
+  .hero--align-right .hero__actions {
+    justify-content: flex-end;
+  }
+
+  @media screen and (min-width: 750px) {
+    .main-hero .hero__inner {
+      padding: 96px 40px;
+      min-height: 460px;
+    }
+
+    .main-hero .hero__content {
+      gap: 1.25rem;
+    }
+
+    .main-hero .hero__subheading {
+      font-size: 1.125rem;
+    }
+  }
+{% endstylesheet %}
+
+{% schema %}
+{
+  "name": "Hero banner",
+  "tag": "section",
+  "settings": [
+    {
+      "type": "text",
+      "id": "accessibility_label",
+      "label": "Aria label",
+      "default": "Hero banner"
+    },
+    {
+      "type": "image_picker",
+      "id": "background_image",
+      "label": "Background image"
+    },
+    {
+      "type": "image_picker",
+      "id": "mobile_background_image",
+      "label": "Mobile background image"
+    },
+    {
+      "type": "color",
+      "id": "overlay_color",
+      "label": "Overlay color",
+      "default": "#000000"
+    },
+    {
+      "type": "range",
+      "id": "overlay_opacity",
+      "label": "Overlay opacity",
+      "min": 0,
+      "max": 100,
+      "step": 5,
+      "unit": "%",
+      "default": 40
+    },
+    {
+      "type": "text",
+      "id": "eyebrow",
+      "label": "Eyebrow text"
+    },
+    {
+      "type": "text",
+      "id": "heading",
+      "label": "Heading",
+      "default": "Tell your story here"
+    },
+    {
+      "type": "richtext",
+      "id": "subheading",
+      "label": "Subheading",
+      "default": "<p>Share more detail about your brand and offerings.</p>"
+    },
+    {
+      "type": "url",
+      "id": "primary_button_link",
+      "label": "Primary button link"
+    },
+    {
+      "type": "text",
+      "id": "primary_button_label",
+      "label": "Primary button label",
+      "default": "Shop now"
+    },
+    {
+      "type": "checkbox",
+      "id": "show_secondary_button",
+      "label": "Show secondary button",
+      "default": false
+    },
+    {
+      "type": "url",
+      "id": "secondary_button_link",
+      "label": "Secondary button link"
+    },
+    {
+      "type": "text",
+      "id": "secondary_button_label",
+      "label": "Secondary button label",
+      "default": "Learn more"
+    },
+    {
+      "type": "select",
+      "id": "content_alignment",
+      "label": "Content alignment",
+      "default": "center",
+      "options": [
+        { "value": "left", "label": "Left" },
+        { "value": "center", "label": "Center" },
+        { "value": "right", "label": "Right" }
+      ]
+    },
+    {
+      "type": "range",
+      "id": "content_max_width",
+      "label": "Content max width",
+      "min": 480,
+      "max": 1200,
+      "step": 10,
+      "unit": "px",
+      "default": 720
+    }
+  ],
+  "presets": [
+    {
+      "name": "Hero banner"
+    }
+  ]
+}
+{% endschema %}
