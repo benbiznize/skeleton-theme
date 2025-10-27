@@ -1,7 +1,10 @@
 {% liquid
   assign display_mode = section.settings.display_mode
   assign layout_style = section.settings.layout_style
-  assign enable_carousel_nav = layout_style == 'carousel'
+  assign enable_carousel_nav = false
+  if layout_style == 'carousel'
+    assign enable_carousel_nav = true
+  endif
   assign include_tags = section.settings.include_tags | downcase | split: ','
   assign exclude_tags = section.settings.exclude_tags | downcase | split: ','
   assign hide_when_empty = section.settings.hide_when_empty
