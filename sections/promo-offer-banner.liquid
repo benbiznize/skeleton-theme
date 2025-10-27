@@ -1,0 +1,517 @@
+{%- liquid
+  assign show_banner = true
+  assign now_seconds = 'now' | date: '%s'
+
+  if section.settings.start_datetime != blank
+    assign start_seconds = section.settings.start_datetime | date: '%s'
+    if now_seconds < start_seconds
+      assign show_banner = false
+    endif
+  endif
+
+  if show_banner and section.settings.end_datetime != blank
+    assign end_seconds = section.settings.end_datetime | date: '%s'
+    if now_seconds > end_seconds
+      assign show_banner = false
+    endif
+  endif
+
+  if show_banner
+    assign visibility_scope = section.settings.visibility_scope | default: 'all_pages'
+    case visibility_scope
+      when 'home_only'
+        if request.page_type != 'index'
+          assign show_banner = false
+        endif
+      when 'collections_only'
+        if request.page_type != 'collection'
+          assign show_banner = false
+        endif
+      when 'product_only'
+        if request.page_type != 'product'
+          assign show_banner = false
+        endif
+    endcase
+  endif
+
+  case section.settings.padding_y
+    when 'small'
+      assign padding_value = '0.75rem'
+    when 'large'
+      assign padding_value = '1.75rem'
+    else
+      assign padding_value = '1.25rem'
+  endcase
+
+  if section.settings.rounded
+    assign radius_value = '0.75rem'
+  else
+    assign radius_value = '0'
+  endif
+-%}
+
+{%- if show_banner -%}
+  <script>
+    (function() {
+      try {
+        var dismissedUntil = window.localStorage.getItem('promoOfferBanner-{{ section.id }}');
+        if (dismissedUntil && Date.now() < parseInt(dismissedUntil, 10)) {
+          document.documentElement.classList.add('promo-offer-banner--{{ section.id }}-dismissed');
+        }
+      } catch (error) {
+        /* no-op */
+      }
+    })();
+  </script>
+  <section
+    id="promo-offer-banner-{{ section.id }}"
+    class="promo-offer-banner"
+    role="status"
+    aria-live="polite"
+    data-dismiss-days="{{ section.settings.dismiss_for_days | default: 7 }}"
+    data-section-id="{{ section.id }}"
+    data-link-style="{{ section.settings.link_style }}"
+    data-threshold-enabled="{{ section.settings.enable_free_shipping_threshold }}"
+    data-threshold-amount="{{ section.settings.threshold_amount }}"
+    data-shop-currency="{{ shop.currency }}"
+    style="--promo-padding-block: {{ padding_value }}; --promo-radius: {{ radius_value }}; --promo-background: {{ section.settings.background_color }}; --promo-text: {{ section.settings.text_color }};"
+  >
+    <div class="promo-offer-banner__inner">
+      {%- if section.settings.show_icon and section.settings.icon_text != blank -%}
+        <span class="promo-offer-banner__icon" aria-hidden="true">{{ section.settings.icon_text }}</span>
+      {%- endif -%}
+      <div class="promo-offer-banner__body">
+        <div class="promo-offer-banner__message rte">{{ section.settings.message }}</div>
+        {%- if section.settings.subtext != blank -%}
+          <p class="promo-offer-banner__subtext">{{ section.settings.subtext }}</p>
+        {%- endif -%}
+        {%- if section.settings.enable_free_shipping_threshold -%}
+          <p class="promo-offer-banner__free-shipping" data-free-shipping-message aria-live="polite">Checking free shipping eligibility…</p>
+        {%- endif -%}
+      </div>
+      {%- if section.settings.link_text != blank and section.settings.link_url != blank -%}
+        <a class="promo-offer-banner__link{% if section.settings.link_style == 'button' %} promo-offer-banner__link--button{% endif %}"
+          href="{{ section.settings.link_url }}"
+          {% if section.settings.link_style != 'button' %}data-underline-link{% endif %}
+        >
+          {{ section.settings.link_text | escape }}
+        </a>
+      {%- endif -%}
+      <button type="button" class="promo-offer-banner__dismiss" aria-label="{{ 'Dismiss offer banner' | escape }}">
+        <span aria-hidden="true">&times;</span>
+      </button>
+    </div>
+  </section>
+  <style>
+    .promo-offer-banner--{{ section.id }}-dismissed #promo-offer-banner-{{ section.id }} {
+      display: none;
+    }
+    #promo-offer-banner-{{ section.id }} {
+      background-color: var(--promo-background);
+      color: var(--promo-text);
+      padding-block: var(--promo-padding-block);
+      padding-inline: 1.25rem;
+      border-radius: var(--promo-radius);
+      position: relative;
+      min-height: calc(var(--promo-padding-block) * 2 + 3rem);
+    }
+    #promo-offer-banner-{{ section.id }}:focus-within {
+      outline: 2px solid currentColor;
+      outline-offset: 2px;
+    }
+    #promo-offer-banner-{{ section.id }} .promo-offer-banner__inner {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 0.75rem;
+    }
+    #promo-offer-banner-{{ section.id }} .promo-offer-banner__icon {
+      font-size: 1.5rem;
+      line-height: 1;
+    }
+    #promo-offer-banner-{{ section.id }} .promo-offer-banner__body {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+    #promo-offer-banner-{{ section.id }} .promo-offer-banner__message {
+      margin: 0;
+      font-weight: 600;
+    }
+    #promo-offer-banner-{{ section.id }} .promo-offer-banner__message p {
+      margin: 0;
+    }
+    #promo-offer-banner-{{ section.id }} .promo-offer-banner__subtext,
+    #promo-offer-banner-{{ section.id }} .promo-offer-banner__free-shipping {
+      margin: 0;
+      font-size: 0.95rem;
+      opacity: 0.9;
+    }
+    #promo-offer-banner-{{ section.id }} .promo-offer-banner__link {
+      font-weight: 600;
+      text-decoration: none;
+      position: relative;
+      color: inherit;
+    }
+    #promo-offer-banner-{{ section.id }} .promo-offer-banner__link[data-underline-link]::after {
+      content: '';
+      position: absolute;
+      inset-inline: 0;
+      bottom: -0.15em;
+      height: 2px;
+      background-color: currentColor;
+      opacity: 0.8;
+      transition: opacity 150ms ease;
+    }
+    #promo-offer-banner-{{ section.id }} .promo-offer-banner__link[data-underline-link]:hover::after,
+    #promo-offer-banner-{{ section.id }} .promo-offer-banner__link[data-underline-link]:focus-visible::after {
+      opacity: 1;
+    }
+    #promo-offer-banner-{{ section.id }} .promo-offer-banner__link--button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0.55rem 1.25rem;
+      border-radius: 999px;
+      background-color: rgba(255, 255, 255, 0.15);
+      color: inherit;
+      border: 2px solid currentColor;
+      transition: background-color 150ms ease, color 150ms ease;
+      text-decoration: none;
+    }
+    #promo-offer-banner-{{ section.id }} .promo-offer-banner__link--button:hover,
+    #promo-offer-banner-{{ section.id }} .promo-offer-banner__link--button:focus-visible {
+      background-color: currentColor;
+      color: var(--promo-background);
+    }
+    #promo-offer-banner-{{ section.id }} .promo-offer-banner__link:focus-visible {
+      outline: 2px solid currentColor;
+      outline-offset: 2px;
+    }
+    #promo-offer-banner-{{ section.id }} .promo-offer-banner__dismiss {
+      margin-left: auto;
+      border: none;
+      background: transparent;
+      color: inherit;
+      font-size: 1.25rem;
+      line-height: 1;
+      cursor: pointer;
+      padding: 0.35rem;
+      border-radius: 999px;
+    }
+    #promo-offer-banner-{{ section.id }} .promo-offer-banner__dismiss:focus-visible {
+      outline: 2px solid currentColor;
+      outline-offset: 2px;
+    }
+    #promo-offer-banner-{{ section.id }} .promo-offer-banner__dismiss:hover {
+      background-color: rgba(255, 255, 255, 0.1);
+    }
+    @media (min-width: 48em) {
+      #promo-offer-banner-{{ section.id }} {
+        padding-inline: 2.5rem;
+      }
+      #promo-offer-banner-{{ section.id }} .promo-offer-banner__inner {
+        flex-direction: row;
+        align-items: center;
+        gap: 1.25rem;
+      }
+      #promo-offer-banner-{{ section.id }} .promo-offer-banner__body {
+        flex: 1;
+      }
+      #promo-offer-banner-{{ section.id }} .promo-offer-banner__icon {
+        margin-right: 0.5rem;
+      }
+    }
+  </style>
+  <script>
+    (function() {
+      var bannerId = 'promo-offer-banner-{{ section.id }}';
+      var storageKey = 'promoOfferBanner-{{ section.id }}';
+      if (!window.__promoOfferBannerInit) {
+        window.__promoOfferBannerInit = {};
+      }
+      if (window.__promoOfferBannerInit[bannerId]) {
+        return;
+      }
+      window.__promoOfferBannerInit[bannerId] = true;
+
+      function ready(callback) {
+        if (document.readyState === 'loading') {
+          document.addEventListener('DOMContentLoaded', callback);
+        } else {
+          callback();
+        }
+      }
+
+      ready(function() {
+        var banner = document.getElementById(bannerId);
+        if (!banner) return;
+
+        try {
+          var dismissedUntil = window.localStorage.getItem(storageKey);
+          if (dismissedUntil && Date.now() < parseInt(dismissedUntil, 10)) {
+            banner.setAttribute('hidden', 'hidden');
+            banner.setAttribute('aria-hidden', 'true');
+            return;
+          } else {
+            document.documentElement.classList.remove('promo-offer-banner--{{ section.id }}-dismissed');
+            banner.removeAttribute('hidden');
+            banner.removeAttribute('aria-hidden');
+          }
+        } catch (error) {
+          /* continue */
+        }
+
+        var dismissButton = banner.querySelector('.promo-offer-banner__dismiss');
+        if (dismissButton) {
+          dismissButton.addEventListener('click', function() {
+            banner.setAttribute('hidden', 'hidden');
+            banner.setAttribute('aria-hidden', 'true');
+            try {
+              var days = parseInt(banner.dataset.dismissDays, 10);
+              if (isNaN(days) || days < 0) {
+                days = 7;
+              }
+              var expireAt = Date.now() + days * 24 * 60 * 60 * 1000;
+              window.localStorage.setItem(storageKey, String(expireAt));
+            } catch (error) {
+              /* ignore */
+            }
+          });
+        }
+
+        if (banner.dataset.thresholdEnabled === 'true') {
+          var freeShippingContainer = banner.querySelector('[data-free-shipping-message]');
+          if (freeShippingContainer) {
+            var thresholdAmount = parseFloat(banner.dataset.thresholdAmount || '0');
+            if (isNaN(thresholdAmount) || thresholdAmount <= 0) {
+              freeShippingContainer.textContent = '';
+              return;
+            }
+            var thresholdCents = Math.round(thresholdAmount * 100);
+            var currency = banner.dataset.shopCurrency || 'USD';
+
+              var formatMoney = function(cents) {
+                try {
+                  if (window.Shopify && typeof window.Shopify.formatMoney === 'function') {
+                    var formatString = window.Shopify.money_format || '{% raw %}{{ amount }}{% endraw %}';
+                    return window.Shopify.formatMoney(cents, formatString);
+                  }
+                } catch (error) {}
+                try {
+                  return new Intl.NumberFormat(document.documentElement.lang || 'en', {
+                    style: 'currency',
+                    currency: currency
+                  }).format(cents / 100);
+                } catch (error) {
+                  return (cents / 100).toFixed(2);
+                }
+              };
+
+              fetch('/cart.js', { credentials: 'same-origin' })
+                .then(function(response) {
+                  if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                  }
+                  return response.json();
+                })
+                .then(function(cart) {
+                  if (!cart || typeof cart.total_price !== 'number') {
+                    return;
+                  }
+                  var remaining = thresholdCents - cart.total_price;
+                  if (remaining > 0) {
+                    freeShippingContainer.textContent = 'Spend ' + formatMoney(remaining) + ' more for free shipping.';
+                  } else {
+                    freeShippingContainer.textContent = 'Congrats! You\'ve unlocked free shipping.';
+                  }
+                })
+                .catch(function() {
+                  /* silently fail */
+                });
+          }
+        }
+      });
+    })();
+  </script>
+{%- endif -%}
+
+{% schema %}
+{
+  "name": "Promotional offer banner",
+  "tag": "section",
+  "class": "promo-offer-banner-section",
+  "settings": [
+    {
+      "type": "header",
+      "content": "Banner content"
+    },
+    {
+      "type": "richtext",
+      "id": "message",
+      "label": "Message",
+      "default": "<p><strong>Free shipping over $99</strong></p>",
+      "info": "Primary promotional message. Supports simple formatting."
+    },
+    {
+      "type": "text",
+      "id": "subtext",
+      "label": "Subtext",
+      "info": "Optional supporting text."
+    },
+    {
+      "type": "checkbox",
+      "id": "show_icon",
+      "label": "Show icon",
+      "default": true
+    },
+    {
+      "type": "liquid",
+      "id": "icon_text",
+      "label": "Icon",
+      "default": "🚚",
+      "info": "Emoji or small inline SVG."
+    },
+    {
+      "type": "text",
+      "id": "link_text",
+      "label": "Link text",
+      "default": "Shop now"
+    },
+    {
+      "type": "url",
+      "id": "link_url",
+      "label": "Link URL",
+      "default": "/collections/all"
+    },
+    {
+      "type": "select",
+      "id": "link_style",
+      "label": "Link style",
+      "default": "underline",
+      "options": [
+        {
+          "value": "underline",
+          "label": "Underline"
+        },
+        {
+          "value": "button",
+          "label": "Solid button"
+        }
+      ]
+    },
+    {
+      "type": "header",
+      "content": "Appearance"
+    },
+    {
+      "type": "color",
+      "id": "background_color",
+      "label": "Background color",
+      "default": "#0E6245"
+    },
+    {
+      "type": "color",
+      "id": "text_color",
+      "label": "Text color",
+      "default": "#FFFFFF"
+    },
+    {
+      "type": "select",
+      "id": "padding_y",
+      "label": "Vertical padding",
+      "default": "medium",
+      "options": [
+        {
+          "value": "small",
+          "label": "Small"
+        },
+        {
+          "value": "medium",
+          "label": "Medium"
+        },
+        {
+          "value": "large",
+          "label": "Large"
+        }
+      ]
+    },
+    {
+      "type": "checkbox",
+      "id": "rounded",
+      "label": "Rounded corners",
+      "default": false
+    },
+    {
+      "type": "header",
+      "content": "Behavior"
+    },
+    {
+      "type": "number",
+      "id": "dismiss_for_days",
+      "label": "Dismiss duration (days)",
+      "default": 7,
+      "info": "How long to hide the banner after dismissal."
+    },
+    {
+      "type": "text",
+      "id": "start_datetime",
+      "label": "Start date/time",
+      "info": "Optional. Use ISO 8601 format (e.g. 2024-06-01 09:00)."
+    },
+    {
+      "type": "text",
+      "id": "end_datetime",
+      "label": "End date/time",
+      "info": "Optional. Use ISO 8601 format (e.g. 2024-06-15 23:59)."
+    },
+    {
+      "type": "select",
+      "id": "visibility_scope",
+      "label": "Visibility",
+      "default": "all_pages",
+      "options": [
+        {
+          "value": "all_pages",
+          "label": "All pages"
+        },
+        {
+          "value": "home_only",
+          "label": "Home page only"
+        },
+        {
+          "value": "collections_only",
+          "label": "Collection pages only"
+        },
+        {
+          "value": "product_only",
+          "label": "Product pages only"
+        }
+      ]
+    },
+    {
+      "type": "header",
+      "content": "Free shipping threshold"
+    },
+    {
+      "type": "checkbox",
+      "id": "enable_free_shipping_threshold",
+      "label": "Enable free shipping message",
+      "default": false
+    },
+    {
+      "type": "number",
+      "id": "threshold_amount",
+      "label": "Free shipping threshold",
+      "default": 99,
+      "info": "Enter the order total (in store currency) that unlocks free shipping."
+    }
+  ],
+  "presets": [
+    {
+      "name": "Promotional offer banner",
+      "category": "Banners"
+    }
+  ]
+}
+{% endschema %}
